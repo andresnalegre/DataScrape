@@ -1,6 +1,38 @@
-from PyQt5.QtWidgets import QMainWindow, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget, QFileDialog
-from backend.extractor import runExtractor
 import os
+from PyQt5.QtWidgets import (
+    QMainWindow, QLabel, QLineEdit, QPushButton,
+    QTextEdit, QVBoxLayout, QWidget, QFileDialog,
+)
+from PyQt5.QtCore import QThread, pyqtSignal
+from backend.extractor import runExtractor
+from backend.webdriver import WebDriverManager
+from frontend.logics import UiLogic
+
+
+class ScraperWorker(QThread):
+    log_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal(bool)
+
+    def __init__(self, url, directory, driver):
+        super().__init__()
+        self.url = url
+        self.directory = directory
+        self.driver = driver
+
+    def run(self):
+        try:
+            extractor = runExtractor(self.url, self.directory, self.driver)
+            result = extractor.extract_link(self.url)
+            if result:
+                self.log_signal.emit("Scraping completed successfully.")
+                self.finished_signal.emit(True)
+            else:
+                self.log_signal.emit("Scraping finished with no data.")
+                self.finished_signal.emit(False)
+        except Exception as e:
+            self.log_signal.emit(f"Error: {str(e)}")
+            self.finished_signal.emit(False)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -21,6 +53,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.dir_label)
 
         self.dir_button = QPushButton("Choose Directory", self)
+        self.dir_button.setObjectName("dir_button")
         self.dir_button.clicked.connect(self.select_directory)
         layout.addWidget(self.dir_button)
 
@@ -32,6 +65,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.start_button)
 
         self.log_output = QTextEdit(self)
+        self.log_output.setObjectName("log_output")
         self.log_output.setReadOnly(True)
         layout.addWidget(self.log_output)
 
@@ -40,9 +74,23 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
 
         self.selected_directory = None
+        self.logic = UiLogic(self.log_output, self)
+        self.worker = None
+
+        self._init_driver()
+
+    def _init_driver(self):
+        try:
+            self.log_output.append("Initializing WebDriver...")
+            self.driver = WebDriverManager.get_driver(browser="chrome")
+            self.log_output.append("WebDriver ready.")
+        except Exception as e:
+            self.driver = None
+            self.log_output.append(f"WebDriver failed to initialize: {str(e)}")
+            self.start_button.setEnabled(False)
 
     def select_directory(self):
-        directory = QFileDialog.getExistingDirectory(self, "Select Directory")
+        directory = self.logic.select_directory()
         if directory:
             self.selected_dir_label.setText(f"Selected Directory: {directory}")
             self.selected_directory = directory
@@ -51,17 +99,22 @@ class MainWindow(QMainWindow):
         url = self.url_input.text().strip()
         directory_name = self.selected_directory
 
-        if not directory_name:
-            self.log_output.append("No directory selected. Please select a directory before starting.")
+        if not self.logic.verify_input(url, directory_name):
+            return
+
+        if self.driver is None:
+            self.log_output.append("WebDriver is not available. Cannot scrape.")
             return
 
         self.log_output.append(f"Starting scraping for URL: {url}")
-        try:
-            extractor = runExtractor(url, directory_name)
-            result = extractor.extract_link(url)
-            if result:
-                self.log_output.append("Scraping completed successfully.")
-            else:
-                self.log_output.append("Scraping finished with no data.")
-        except Exception as e:
-            self.log_output.append(f"Error: {str(e)}")
+        self.start_button.setEnabled(False)
+        self.start_button.setText("Scraping...")
+
+        self.worker = ScraperWorker(url, directory_name, self.driver)
+        self.worker.log_signal.connect(self.log_output.append)
+        self.worker.finished_signal.connect(self._on_scraping_finished)
+        self.worker.start()
+
+    def _on_scraping_finished(self, success):
+        self.start_button.setEnabled(True)
+        self.start_button.setText("Start Scraping")

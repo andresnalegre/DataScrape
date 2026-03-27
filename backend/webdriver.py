@@ -5,12 +5,15 @@ from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.remote.webdriver import WebDriver
+from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 from contextlib import contextmanager
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
-CHROMEDRIVER_PATH = "./CromeDriver/131.0.6778.204/chromedriver-mac-arm64/chromedriver"
 
 def get_chrome_driver(headless=True, additional_args=None):
     try:
@@ -23,7 +26,7 @@ def get_chrome_driver(headless=True, additional_args=None):
             for arg in additional_args:
                 options.add_argument(arg)
 
-        service = ChromeService(executable_path=CHROMEDRIVER_PATH)
+        service = ChromeService(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
         driver.implicitly_wait(10)
         driver.set_page_load_timeout(30)
@@ -33,6 +36,7 @@ def get_chrome_driver(headless=True, additional_args=None):
     except Exception as e:
         logging.error(f"Error starting ChromeDriver: {e}")
         raise
+
 
 def get_firefox_driver(headless=True, additional_args=None):
     try:
@@ -56,6 +60,7 @@ def get_firefox_driver(headless=True, additional_args=None):
         logging.error(f"Error starting FirefoxDriver: {e}")
         raise
 
+
 def get_webdriver(browser="chrome", headless=True, additional_args=None):
     try:
         if browser.lower() == "chrome":
@@ -68,13 +73,18 @@ def get_webdriver(browser="chrome", headless=True, additional_args=None):
         logging.error(f"Error requesting WebDriver: {e}")
         raise
 
+
 class WebDriverManager:
     _driver: WebDriver | None = None
 
     @staticmethod
     def get_driver(browser="chrome", headless=True, additional_args=None):
         if WebDriverManager._driver is None:
-            WebDriverManager._driver = get_webdriver(browser=browser, headless=headless, additional_args=additional_args)
+            WebDriverManager._driver = get_webdriver(
+                browser=browser,
+                headless=headless,
+                additional_args=additional_args,
+            )
             logging.info(f"WebDriver created for browser: {browser}")
         return WebDriverManager._driver
 
@@ -86,6 +96,7 @@ class WebDriverManager:
             WebDriverManager._driver = None
         else:
             logging.info("No active WebDriver to close.")
+
 
 @contextmanager
 def webdriver_context(browser="chrome", headless=True, additional_args=None):

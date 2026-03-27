@@ -2,6 +2,7 @@ import os
 import re
 from PyQt5.QtWidgets import QFileDialog
 
+
 class UiLogic:
     def __init__(self, log_output, parent):
         self.log_output = log_output

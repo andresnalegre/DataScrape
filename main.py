@@ -12,15 +12,18 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
+
 def apply_stylesheet(app):
     stylesheet_path = os.path.join(os.path.dirname(__file__), 'frontend', 'styles.qss')
     with open(stylesheet_path, 'r') as file:
         app.setStyleSheet(file.read())
 
+
 def handle_signal(sig, frame):
     logging.info("Interrupt signal received! Shutting down WebDriver and application...")
     WebDriverManager.quit_driver()
     QApplication.quit()
+
 
 def main():
     signal.signal(signal.SIGINT, handle_signal)
@@ -42,6 +45,7 @@ def main():
     finally:
         logging.info("Shutting down WebDriver...")
         WebDriverManager.quit_driver()
+
 
 if __name__ == "__main__":
     main()

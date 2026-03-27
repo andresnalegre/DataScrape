@@ -1,11 +1,8 @@
 import os
-import time
-import random
 import logging
 import requests
 from urllib.parse import urlparse, urljoin, urlunparse
-from bs4 import BeautifulSoup #type: ignore
-from backend.webdriver import WebDriverManager
+from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -18,16 +15,14 @@ logging.basicConfig(
 
 
 class runExtractor:
-    def __init__(self, base_url, save_dir, timeout=30, browser="chrome"):
+    def __init__(self, base_url, save_dir, driver, timeout=30):
         self.base_url = self._normalize_url(base_url)
         self.save_dir = save_dir
         self.timeout = timeout
-        self.browser = browser
+        self.driver = driver
         self.visited_links = set()
         self.visited_links.add(self.base_url)
         os.makedirs(self.save_dir, exist_ok=True)
-        logging.info("Initializing WebDriver...")
-        self.driver = WebDriverManager.get_driver(browser=self.browser)
 
     def extract_link(self, url):
         try:
@@ -45,15 +40,16 @@ class runExtractor:
                 return None
 
             logging.info("Page content retrieved successfully.")
-            filename = self._create_filename(url)
-            self._save_html(html_content, self.save_dir, filename)
 
             soup = BeautifulSoup(html_content, 'html.parser')
             self._process_resources(soup, self.base_url, self.save_dir)
-            self.visited_links.add(url)
 
+            filename = self._create_filename(url)
+            self._save_html(str(soup), self.save_dir, filename)
+
+            self.visited_links.add(url)
             logging.info(f"Extraction completed for URL: {url}")
-            return {"html": html_content}
+            return {"html": str(soup)}
 
         except TimeoutException:
             logging.error(f"Timeout while accessing URL: {url}")
@@ -84,23 +80,32 @@ class runExtractor:
         for tag, attr in resource_tags.items():
             for element in soup.find_all(tag):
                 resource_url = element.get(attr)
-                if resource_url:
-                    full_url = urljoin(base_url, resource_url)
-                    filename = os.path.basename(urlparse(full_url).path)
-                    save_path = os.path.join(save_dir, filename)
+                if not resource_url:
+                    continue
 
-                    try:
-                        response = requests.get(full_url, stream=True, timeout=10)
-                        response.raise_for_status()
+                if resource_url.startswith(('data:', '#', 'javascript:')):
+                    continue
 
-                        with open(save_path, "wb") as f:
-                            for chunk in response.iter_content(chunk_size=8192):
-                                f.write(chunk)
+                full_url = urljoin(base_url, resource_url)
+                filename = os.path.basename(urlparse(full_url).path)
 
-                        element[attr] = filename
-                        logging.info(f"Downloaded and updated: {full_url} -> {save_path}")
-                    except Exception as e:
-                        logging.error(f"Failed to download resource {full_url}: {e}")
+                if not filename:
+                    continue
+
+                save_path = os.path.join(save_dir, filename)
+
+                try:
+                    response = requests.get(full_url, stream=True, timeout=10)
+                    response.raise_for_status()
+
+                    with open(save_path, "wb") as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
+
+                    element[attr] = filename
+                    logging.info(f"Downloaded and updated: {full_url} -> {save_path}")
+                except Exception as e:
+                    logging.error(f"Failed to download resource {full_url}: {e}")
 
     def _normalize_url(self, url):
         url = url.strip()
