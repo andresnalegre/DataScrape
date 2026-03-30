@@ -1,147 +1,154 @@
-QMainWindow {
-    background-color: #FFFFFF;
-    border-radius: 12px;
-    padding: 15px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
+import os
+from PyQt5.QtWidgets import (
+    QMainWindow, QLabel, QLineEdit, QPushButton,
+    QTextEdit, QVBoxLayout, QHBoxLayout, QWidget, QFileDialog,
+)
+from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtGui import QPixmap
+from backend.extractor import runExtractor
+from backend.webdriver import WebDriverManager
+from frontend.logics import UiLogic
 
-QLabel {
-    font-family: 'Helvetica Neue', sans-serif;
-    font-weight: 300;
-    font-size: 14px;
-    color: #333;
-    padding: 3px;
-    background: transparent;
-}
 
-QLineEdit {
-    background-color: #F7F7F7;
-    border: 1px solid #D1D1D6;
-    color: #333;
-    font-size: 14px;
-    padding: 8px 12px;
-    border-radius: 10px;
-    transition: all 0.3s ease;
-}
+class ScraperWorker(QThread):
+    log_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal(bool)
 
-QLineEdit:focus {
-    border-color: #4CAF50;
-    background-color: #F1F1F1;
-}
+    def __init__(self, url, directory, driver):
+        super().__init__()
+        self.url = url
+        self.directory = directory
+        self.driver = driver
+        self._stop = False
 
-QLineEdit::placeholder {
-    color: #A1A1A1;
-    font-style: italic;
-}
+    def stop(self):
+        self._stop = True
 
-QPushButton {
-    background-color: #4CAF50;
-    color: #fff;
-    border: none;
-    padding: 8px 16px;
-    font-size: 14px;
-    font-weight: bold;
-    border-radius: 8px;
-    cursor: pointer;
-    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-}
+    def run(self):
+        try:
+            extractor = runExtractor(self.url, self.directory, self.driver)
+            result = extractor.extract_link(self.url)
+            if self._stop:
+                self.log_signal.emit("Scraping stopped by user.")
+                self.finished_signal.emit(False)
+            elif result:
+                self.log_signal.emit("Scraping completed successfully.")
+                self.finished_signal.emit(True)
+            else:
+                self.log_signal.emit("Scraping finished with no data.")
+                self.finished_signal.emit(False)
+        except Exception as e:
+            self.log_signal.emit(f"Error: {str(e)}")
+            self.finished_signal.emit(False)
 
-QPushButton:hover {
-    background-color: #45a049;
-    transform: translateY(-2px);
-    box-shadow: 0px 6px 8px rgba(0, 0, 0, 0.2);
-}
 
-QTextEdit {
-    background-color: #3a3f47;
-    border: 1px solid #555;
-    color: #f1f1f1;
-    font-size: 14px;
-    padding: 12px;
-    border-radius: 8px;
-    font-family: 'Arial', sans-serif;
-    transition: all 0.3s ease;
-}
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
 
-QTextEdit:focus {
-    border: 1px solid #4CAF50;
-    background-color: #2d323a;
-}
+        self.setWindowTitle("DataScrape")
+        self.setGeometry(300, 200, 600, 500)
 
-QScrollBar:vertical, QScrollBar:horizontal {
-    background-color: #555;
-    border-radius: 5px;
-    width: 8px;
-}
+        layout = QVBoxLayout()
+        layout.setSpacing(8)
 
-QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
-    background-color: #4CAF50;
-    border-radius: 5px;
-}
+        logo_label = QLabel()
+        logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'DataScrape.png')
+        pixmap = QPixmap(logo_path)
+        if not pixmap.isNull():
+            pixmap = pixmap.scaledToHeight(64, Qt.SmoothTransformation)
+            logo_label.setPixmap(pixmap)
+        logo_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(logo_label)
 
-QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
-    background-color: #45a049;
-}
+        self.url_label = QLabel("Enter Website URL:")
+        layout.addWidget(self.url_label)
 
-QMainWindow::closeButton, QMainWindow::minimizeButton {
-    background-color: transparent;
-    border: none;
-    color: #f1f1f1;
-    font-size: 16px;
-}
+        self.url_input = QLineEdit(self)
+        layout.addWidget(self.url_input)
 
-QStatusBar {
-    background-color: #333;
-    color: #f1f1f1;
-    padding: 10px;
-}
+        self.dir_label = QLabel("Select Directory to Save:")
+        layout.addWidget(self.dir_label)
 
-QPushButton#dir_button {
-    background-color: #007AFF;
-    color: #fff;
-    padding: 8px 16px;
-    font-size: 14px;
-    border-radius: 8px;
-    text-align: center;
-    cursor: pointer;
-    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-}
+        self.dir_button = QPushButton("Choose Directory", self)
+        self.dir_button.setObjectName("dir_button")
+        self.dir_button.clicked.connect(self.select_directory)
+        layout.addWidget(self.dir_button)
 
-QPushButton#dir_button:hover {
-    background-color: #0051CC;
-    transform: translateY(-2px);
-    box-shadow: 0px 6px 8px rgba(0, 0, 0, 0.2);
-}
+        self.selected_dir_label = QLabel("No directory selected", self)
+        layout.addWidget(self.selected_dir_label)
 
-QPushButton#dir_button:focus {
-    outline: none;
-    box-shadow: 0px 0px 0px 2px rgba(0, 122, 255, 0.4);
-}
+        button_row = QHBoxLayout()
+        self.start_button = QPushButton("Start Scraping")
+        self.start_button.clicked.connect(self.start_scraping)
+        button_row.addWidget(self.start_button)
 
-QTextEdit#log_output {
-    background-color: #333;
-    border: 1px solid #444;
-    color: #FFFFFF;
-    font-size: 14px;
-    padding: 12px;
-    border-radius: 8px;
-    font-family: 'Arial', sans-serif;
-    transition: all 0.3s ease;
-}
+        self.stop_button = QPushButton("Stop")
+        self.stop_button.setObjectName("stop_button")
+        self.stop_button.clicked.connect(self.stop_scraping)
+        self.stop_button.setEnabled(False)
+        button_row.addWidget(self.stop_button)
 
-QScrollBar:vertical, QScrollBar:horizontal {
-    background-color: #555;
-    border-radius: 5px;
-    width: 8px;
-}
+        layout.addLayout(button_row)
 
-QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
-    background-color: #4CAF50;
-    border-radius: 5px;
-}
+        self.log_output = QTextEdit(self)
+        self.log_output.setObjectName("log_output")
+        self.log_output.setReadOnly(True)
+        layout.addWidget(self.log_output)
 
-QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
-    background-color: #45a049;
-}
+        container = QWidget()
+        container.setLayout(layout)
+        self.setCentralWidget(container)
+
+        self.selected_directory = None
+        self.logic = UiLogic(self.log_output, self)
+        self.worker = None
+
+        self._init_driver()
+
+    def _init_driver(self):
+        try:
+            self.log_output.append("Ready to scrape!")
+            self.driver = WebDriverManager.get_driver(browser="chrome")
+        except Exception as e:
+            self.driver = None
+            self.log_output.append(f"WebDriver failed to initialize: {str(e)}")
+            self.start_button.setEnabled(False)
+
+    def select_directory(self):
+        directory = self.logic.select_directory()
+        if directory:
+            self.selected_dir_label.setText(f"Selected Directory: {directory}")
+            self.selected_directory = directory
+
+    def start_scraping(self):
+        url = self.url_input.text().strip()
+        directory_name = self.selected_directory
+
+        if not self.logic.verify_input(url, directory_name):
+            return
+
+        if self.driver is None:
+            self.log_output.append("WebDriver is not available. Cannot scrape.")
+            return
+
+        self.log_output.append(f"Starting scraping for URL: {url}")
+        self.start_button.setEnabled(False)
+        self.start_button.setText("Scraping...")
+        self.stop_button.setEnabled(True)
+
+        self.worker = ScraperWorker(url, directory_name, self.driver)
+        self.worker.log_signal.connect(self.log_output.append)
+        self.worker.finished_signal.connect(self._on_scraping_finished)
+        self.worker.start()
+
+    def stop_scraping(self):
+        if self.worker and self.worker.isRunning():
+            self.worker.stop()
+            self.worker.wait()
+        self._on_scraping_finished(False)
+
+    def _on_scraping_finished(self, success):
+        self.start_button.setEnabled(True)
+        self.start_button.setText("Start Scraping")
+        self.stop_button.setEnabled(False)
