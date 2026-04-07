@@ -15,8 +15,13 @@ logging.basicConfig(
 
 def apply_stylesheet(app):
     stylesheet_path = os.path.join(os.path.dirname(__file__), 'frontend', 'styles.qss')
-    with open(stylesheet_path, 'r') as file:
-        app.setStyleSheet(file.read())
+    try:
+        with open(stylesheet_path, 'r') as file:
+            app.setStyleSheet(file.read())
+    except FileNotFoundError:
+        logging.warning(f"Stylesheet not found at: {stylesheet_path}")
+    except Exception as e:
+        logging.error(f"Error loading stylesheet: {e}")
 
 
 def handle_signal(sig, frame):

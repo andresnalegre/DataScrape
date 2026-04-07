@@ -53,8 +53,19 @@ class MainWindow(QMainWindow):
         layout.setSpacing(8)
 
         logo_label = QLabel()
-        logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'logo.png')
-        pixmap = QPixmap(logo_path)
+        base = os.path.dirname(__file__)
+        logo_candidates = [
+            os.path.join(base, '..', 'assets', 'logo.png'),
+            os.path.join(base, 'assets', 'logo.png'),
+            os.path.join(base, '..', 'logo.png'),
+        ]
+        pixmap = QPixmap()
+        for logo_path in logo_candidates:
+            logo_path = os.path.normpath(logo_path)
+            if os.path.isfile(logo_path):
+                pixmap = QPixmap(logo_path)
+                if not pixmap.isNull():
+                    break
         if not pixmap.isNull():
             pixmap = pixmap.scaledToHeight(120, Qt.SmoothTransformation)
             logo_label.setPixmap(pixmap)
