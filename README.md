@@ -1,55 +1,51 @@
-# DataScrape
+<div align="center">
 
-**DataScrape** is a Python project where I demonstrate my skills with Python. In this project, I collect all the information from a given URL and save it to a folder chosen by the user.
+  <img src="assets/logo.png" alt="DataScrape" width="160" />
+
+  # DataScrape
+
+  A desktop web scraper built with Python and PyQt5, available for macOS.
+
+  [![Download DMG](https://img.shields.io/badge/Download-DMG-blue?style=flat-square)](https://github.com/andresnalegre/DataScrape/releases)
+  [![GitHub](https://img.shields.io/badge/Made%20by-Andres%20Nicolas%20Alegre-brightgreen?style=flat-square)](https://github.com/andresnalegre)
+</div>
 
 ---
+
+## About
+
+**DataScrape** is a desktop web scraper that extracts HTML content and resources from any website and saves them locally. It uses Selenium with auto manage ChromeDriver to render heavy pages.
 
 ## Features
 
-- Selenium
+- Scrape any website URL
+- Extracts HTML, CSS, JS and images
+- Saves all resources locally
+- Chrome and Firefox support
+- Stop scraping at any time
+- macOS DMG available
+
+## Stack
+
+- Python
 - PyQt5
-- friendly UI
+- Selenium
+- BeautifulSoup4
+- Requests
 
----
+## Run locally
 
-## Technologies Used
-
-- Python 3
-
----
-
-## How to use
-
-1. **Clone the Project**:
-   - Open your terminal, go to the folder where you want to save the project, and run:
-
-     ```bash
-     git clone https://github.com/andresnalegre/DataScrape
-     ```
-     
-2. **Go to the Project Folder**:
-   - Change to the project folder:
-
-     ```bash
-     cd DataScrape
-     ```
-     
-3. **Run the Project**:
-   - Run the project with:
-
-     ```bash
-     python3 main.py
-     ```
----
+```bash
+git clone https://github.com/andresnalegre/DataScrape
+cd DataScrape
+pip install -r requirements.txt
+python main.py
+```
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE)
-
----
+This project is licensed under the [MIT License](LICENSE).
 
 ## Contributing
 
-Contributions are welcome! If you have any improvements or new features you’d like to add, feel free to fork the repository and submit a pull request. Please ensure that your code follows the existing style and structure.
-
-[![GitHub](https://img.shields.io/badge/Made%20by-Andres%20Nicolas%20Alegre-brightgreen)](https://github.com/andresnalegre)
+Contributions are welcome! Feel free to fork the repository and submit a pull request. Please ensure your code follows the existing style and structure.
