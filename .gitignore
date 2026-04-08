@@ -1,17 +1,17 @@
-.DS_Store
-dist/.DS_Store
-
-__pycache__/
-*.py[cod]
-*.pyo
-
-*.egg-info/
 build/
+dist/
 *.spec
 
-venv/
-.venv/
-env/
+*.dmg
+
+__pycache__/
+*.pyc
+*.pyo
+
+.DS_Store
+.AppleDouble
+.LSOverride
 
 .env
-*.log
+venv/
+.venv/
