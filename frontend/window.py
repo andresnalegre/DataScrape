@@ -1,13 +1,26 @@
 import os
+import logging
 from PyQt5.QtWidgets import (
     QMainWindow, QLabel, QLineEdit, QPushButton,
-    QTextEdit, QVBoxLayout, QHBoxLayout, QWidget, QFileDialog,
+    QTextEdit, QVBoxLayout, QHBoxLayout, QWidget,
 )
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 from PyQt5.QtGui import QPixmap
-from backend.extractor import runExtractor
+from backend.extractor import Extractor
 from backend.webdriver import WebDriverManager
 from frontend.logics import UiLogic
+
+
+class DriverInitWorker(QThread):
+    success_signal = pyqtSignal(object)
+    error_signal = pyqtSignal(str)
+
+    def run(self):
+        try:
+            driver = WebDriverManager.get_driver(browser="chrome")
+            self.success_signal.emit(driver)
+        except Exception as e:
+            self.error_signal.emit(str(e))
 
 
 class ScraperWorker(QThread):
@@ -26,7 +39,7 @@ class ScraperWorker(QThread):
 
     def run(self):
         try:
-            extractor = runExtractor(self.url, self.directory, self.driver)
+            extractor = Extractor(self.url, self.directory, self.driver)
             result = extractor.extract_link(self.url)
             if self._stop:
                 self.log_signal.emit("Scraping stopped by user.")
@@ -53,22 +66,12 @@ class MainWindow(QMainWindow):
         layout.setSpacing(8)
 
         logo_label = QLabel()
-        base = os.path.dirname(__file__)
-        logo_candidates = [
-            os.path.join(base, '..', 'assets', 'logo.png'),
-            os.path.join(base, 'assets', 'logo.png'),
-            os.path.join(base, '..', 'logo.png'),
-        ]
-        pixmap = QPixmap()
-        for logo_path in logo_candidates:
-            logo_path = os.path.normpath(logo_path)
-            if os.path.isfile(logo_path):
-                pixmap = QPixmap(logo_path)
-                if not pixmap.isNull():
-                    break
-        if not pixmap.isNull():
-            pixmap = pixmap.scaledToHeight(120, Qt.SmoothTransformation)
-            logo_label.setPixmap(pixmap)
+        logo_path = self._find_asset('logo.png')
+        if logo_path:
+            pixmap = QPixmap(logo_path)
+            if not pixmap.isNull():
+                pixmap = pixmap.scaledToHeight(120, Qt.SmoothTransformation)
+                logo_label.setPixmap(pixmap)
         logo_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(logo_label)
 
@@ -92,6 +95,7 @@ class MainWindow(QMainWindow):
         button_row = QHBoxLayout()
         self.start_button = QPushButton("Start Scraping")
         self.start_button.clicked.connect(self.start_scraping)
+        self.start_button.setEnabled(False)
         button_row.addWidget(self.start_button)
 
         self.stop_button = QPushButton("Stop")
@@ -114,17 +118,39 @@ class MainWindow(QMainWindow):
         self.selected_directory = None
         self.logic = UiLogic(self.log_output, self)
         self.worker = None
+        self.driver = None
+        self._driver_worker = None
 
-        self._init_driver()
+        QTimer.singleShot(0, self._init_driver)
+
+    def _find_asset(self, filename):
+        base = os.path.dirname(__file__)
+        candidates = [
+            os.path.join(base, '..', 'assets', filename),
+            os.path.join(base, 'assets', filename),
+        ]
+        for path in candidates:
+            path = os.path.normpath(path)
+            if os.path.isfile(path):
+                return path
+        return None
 
     def _init_driver(self):
-        try:
-            self.log_output.append("Ready to scrape!")
-            self.driver = WebDriverManager.get_driver(browser="chrome")
-        except Exception as e:
-            self.driver = None
-            self.log_output.append(f"WebDriver failed to initialize: {str(e)}")
-            self.start_button.setEnabled(False)
+        self.log_output.append("Initializing WebDriver...")
+        self._driver_worker = DriverInitWorker()
+        self._driver_worker.success_signal.connect(self._on_driver_ready)
+        self._driver_worker.error_signal.connect(self._on_driver_error)
+        self._driver_worker.start()
+
+    def _on_driver_ready(self, driver):
+        self.driver = driver
+        self.start_button.setEnabled(True)
+        self.log_output.append("Ready to scrape!")
+
+    def _on_driver_error(self, error):
+        self.driver = None
+        self.log_output.append(f"WebDriver failed to initialize: {error}")
+        self.log_output.append("Retry by restarting the application.")
 
     def select_directory(self):
         directory = self.logic.select_directory()
@@ -156,10 +182,16 @@ class MainWindow(QMainWindow):
     def stop_scraping(self):
         if self.worker and self.worker.isRunning():
             self.worker.stop()
-            self.worker.wait()
         self._on_scraping_finished(False)
 
     def _on_scraping_finished(self, success):
         self.start_button.setEnabled(True)
         self.start_button.setText("Start Scraping")
         self.stop_button.setEnabled(False)
+
+    def closeEvent(self, event):
+        if self.worker and self.worker.isRunning():
+            self.worker.stop()
+            self.worker.quit()
+            self.worker.wait()
+        event.accept()

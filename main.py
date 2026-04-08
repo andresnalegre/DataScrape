@@ -14,7 +14,8 @@ logging.basicConfig(
 
 
 def apply_stylesheet(app):
-    stylesheet_path = os.path.join(os.path.dirname(__file__), 'frontend', 'styles.qss')
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    stylesheet_path = os.path.join(base, 'frontend', 'styles.qss')
     try:
         with open(stylesheet_path, 'r') as file:
             app.setStyleSheet(file.read())
@@ -25,7 +26,7 @@ def apply_stylesheet(app):
 
 
 def handle_signal(sig, frame):
-    logging.info("Interrupt signal received! Shutting down WebDriver and application...")
+    logging.info("Interrupt signal received. Shutting down...")
     WebDriverManager.quit_driver()
     QApplication.quit()
 

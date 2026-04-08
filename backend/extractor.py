@@ -8,13 +8,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
 
-
-class runExtractor:
+class Extractor:
     def __init__(self, base_url, save_dir, driver, timeout=30):
         self.base_url = self._normalize_url(base_url)
         self.save_dir = save_dir

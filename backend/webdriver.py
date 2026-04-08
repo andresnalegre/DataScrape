@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.firefox.service import Service as FirefoxService
@@ -8,11 +9,6 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 from contextlib import contextmanager
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
 
 
 def get_chrome_driver(headless=True, additional_args=None):
@@ -75,7 +71,7 @@ def get_webdriver(browser="chrome", headless=True, additional_args=None):
 
 
 class WebDriverManager:
-    _driver: WebDriver | None = None
+    _driver: Optional[WebDriver] = None
 
     @staticmethod
     def get_driver(browser="chrome", headless=True, additional_args=None):
