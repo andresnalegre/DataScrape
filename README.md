@@ -1,10 +1,14 @@
 <div align="center">
-
-  <img src="assets/logo.png" alt="DataScrape" width="160" />
+  <img src="assets/logo.png" alt="DataScrape" width="120" />
 
   # DataScrape
 
   A desktop web scraper built with Python and PyQt5, available for macOS.
+
+  ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
+  ![PyQt5](https://img.shields.io/badge/PyQt5-5.15-green?logo=qt)
+  ![Selenium](https://img.shields.io/badge/Selenium-4.0-43B02A?logo=selenium)
+  ![Platform](https://img.shields.io/badge/Platform-macOS-black?logo=apple)
 
   [![Download DMG](https://img.shields.io/badge/Download-DMG-blue?style=flat-square)](https://github.com/andresnalegre/DataScrape/releases)
   [![GitHub](https://img.shields.io/badge/Made%20by-Andres%20Nicolas%20Alegre-brightgreen?style=flat-square)](https://github.com/andresnalegre)
@@ -14,33 +18,68 @@
 
 ## About
 
-**DataScrape** is a desktop web scraper that extracts HTML content and resources from any website and saves them locally. It uses Selenium with auto manage ChromeDriver to render heavy pages.
+**DataScrape** is a desktop app that scrapes any website and saves its HTML content and resources locally. Just provide a URL and a destination folder, and DataScrape handles the rest.
 
 ## Features
 
-- Scrape any website URL
-- Extracts HTML, CSS, JS and images
-- Saves all resources locally
-- Chrome and Firefox support
-- Stop scraping at any time
+- Scrape any website by URL
+- Downloads and localizes page resources (CSS, JS, images)
+- Save output to any local directory
+- Live log output with status updates
+- Headless Chrome via Selenium
 - macOS DMG available
 
-## Stack
+---
 
-- Python
-- PyQt5
-- Selenium
-- BeautifulSoup4
-- Requests
+## Installation (macOS)
+
+### 1. Download
+Download `DataScrape.dmg` from the [Releases](https://github.com/andresnalegre/DataScrape/releases) page.
+
+### 2. Install
+Open the DMG and drag DataScrape.app to your Applications folder.
+
+### 3. First Launch
+macOS will block the app on first launch because it's not signed. Run this once in Terminal:
+
+```bash
+xattr -cr /Applications/DataScrape.app
+```
+
+Then open DataScrape from Applications or Launchpad normally.
+
+> **Note:** Chrome must be installed on your machine for the scraper to work.
+
+---
 
 ## Run locally
 
+### Requirements
+- Python 3.10+
+- Google Chrome
+
+### Setup
+
 ```bash
-git clone https://github.com/andresnalegre/DataScrape
+git clone https://github.com/andresnalegre/DataScrape.git
 cd DataScrape
 pip install -r requirements.txt
 python main.py
 ```
+
+---
+
+## Tech stack
+
+| Layer      | Technology             |
+|------------|------------------------|
+| Language   | Python 3.12            |
+| UI         | PyQt5 5.15             |
+| Scraping   | Selenium 4 + BeautifulSoup4 |
+| WebDriver  | webdriver-manager      |
+| Platform   | macOS                  |
+
+---
 
 ## License
 
