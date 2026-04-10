@@ -3,7 +3,7 @@
 
   # DataScrape
 
-  A desktop web scraper built with Python and PyQt5, available for macOS.
+  Get data from the web easy.
 
   ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
   ![PyQt5](https://img.shields.io/badge/PyQt5-5.15-green?logo=qt)
@@ -18,7 +18,7 @@
 
 ## About
 
-**DataScrape** is a desktop app that scrapes any website and saves its HTML content and resources locally. Just provide a URL and a destination folder, and DataScrape handles the rest.
+**DataScrape** is a desktop app available for macOS that scrapes any website and saves its HTML content and resources locally. Just provide a URL and a destination folder, and DataScrape takes care of the rest.
 
 ## Features
 
@@ -48,36 +48,9 @@ xattr -cr /Applications/DataScrape.app
 
 Then open DataScrape from Applications or Launchpad normally.
 
+---
+
 > **Note:** Chrome must be installed on your machine for the scraper to work.
-
----
-
-## Run locally
-
-### Requirements
-- Python 3.10+
-- Google Chrome
-
-### Setup
-
-```bash
-git clone https://github.com/andresnalegre/DataScrape.git
-cd DataScrape
-pip install -r requirements.txt
-python main.py
-```
-
----
-
-## Tech stack
-
-| Layer      | Technology             |
-|------------|------------------------|
-| Language   | Python 3.12            |
-| UI         | PyQt5 5.15             |
-| Scraping   | Selenium 4 + BeautifulSoup4 |
-| WebDriver  | webdriver-manager      |
-| Platform   | macOS                  |
 
 ---
 
