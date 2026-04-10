@@ -18,7 +18,7 @@
 
 ## About
 
-**DataScrape** is a desktop app available for macOS that scrapes any website and saves its HTML content and resources locally. Just provide a URL and a destination folder, and DataScrape takes care of the rest.
+**DataScrape** is a desktop app available for macOS that scrapes any website and saves its HTML content and resources locally. Just provide a URL and a destination folder, and the app takes care of the rest.
 
 ## Features
 
