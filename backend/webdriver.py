@@ -71,25 +71,35 @@ def get_webdriver(browser="chrome", headless=True, additional_args=None):
 
 
 class WebDriverManager:
+    _instance: Optional["WebDriverManager"] = None
     _driver: Optional[WebDriver] = None
 
-    @staticmethod
-    def get_driver(browser="chrome", headless=True, additional_args=None):
-        if WebDriverManager._driver is None:
-            WebDriverManager._driver = get_webdriver(
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    @classmethod
+    def get_driver(cls, browser="chrome", headless=True, additional_args=None):
+        if cls._driver is None:
+            cls._driver = get_webdriver(
                 browser=browser,
                 headless=headless,
                 additional_args=additional_args,
             )
             logging.info(f"WebDriver created for browser: {browser}")
-        return WebDriverManager._driver
+        return cls._driver
 
-    @staticmethod
-    def quit_driver():
-        if WebDriverManager._driver is not None:
+    @classmethod
+    def quit_driver(cls):
+        if cls._driver is not None:
             logging.info("Closing the WebDriver.")
-            WebDriverManager._driver.quit()
-            WebDriverManager._driver = None
+            try:
+                cls._driver.quit()
+            except Exception as e:
+                logging.warning(f"Error while quitting WebDriver: {e}")
+            finally:
+                cls._driver = None
         else:
             logging.info("No active WebDriver to close.")
 
