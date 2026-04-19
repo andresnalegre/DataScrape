@@ -13,7 +13,6 @@ from frontend.logics import UiLogic
 
 INFINITE_PAGES = 999_999
 
-
 class DriverInitWorker(QThread):
     success_signal = pyqtSignal(object)
     error_signal = pyqtSignal(str)
@@ -24,7 +23,6 @@ class DriverInitWorker(QThread):
             self.success_signal.emit(driver)
         except Exception as e:
             self.error_signal.emit(str(e))
-
 
 class ScraperWorker(QThread):
     log_signal = pyqtSignal(str)
@@ -68,7 +66,6 @@ class ScraperWorker(QThread):
             self.log_signal.emit(f"Error: {str(e)}")
             self.finished_signal.emit(False)
 
-
 class ToggleButton(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
@@ -76,8 +73,11 @@ class ToggleButton(QPushButton):
         self.setObjectName("toggle_button")
         self.setCursor(Qt.PointingHandCursor)
 
-
 class PagesSelector(QWidget):
+    """
+    Compact pill-row: [ Pages: [__50__] ] [ Infinite ]
+    Always visible in crawling mode. No stacked widget, no expansion.
+    """
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("pages_selector")
@@ -148,7 +148,6 @@ class PagesSelector(QWidget):
         self.pages_input.setEnabled(val and not self.infinite_btn.isChecked())
         self.infinite_btn.setEnabled(val)
         self.custom_pill.setEnabled(val)
-
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -359,7 +358,7 @@ class MainWindow(QMainWindow):
         self.pages_section.setVisible(is_crawl)
 
     def _init_driver(self):
-        self.log_output.append("Initializing WebDriver...")
+        self.log_output.append("Starting up, please wait...")
         self._driver_worker = DriverInitWorker()
         self._driver_worker.success_signal.connect(self._on_driver_ready)
         self._driver_worker.error_signal.connect(self._on_driver_error)
@@ -368,12 +367,11 @@ class MainWindow(QMainWindow):
     def _on_driver_ready(self, driver):
         self.driver = driver
         self.start_button.setEnabled(True)
-        self.log_output.append("Ready to scrape!")
+        self.log_output.append("Ready! Enter a URL and select a folder to begin.")
 
     def _on_driver_error(self, error):
         self.driver = None
-        self.log_output.append(f"WebDriver failed to initialize: {error}")
-        self.log_output.append("Retry by restarting the application.")
+        self.log_output.append("Could not start. Please check your internet connection and restart the app.")
 
     def select_directory(self):
         directory = self.logic.select_directory()
@@ -465,7 +463,6 @@ class MainWindow(QMainWindow):
             self.worker.wait()
         WebDriverManager.quit_driver()
         event.accept()
-
 
 class AboutDialog(QWidget):
     def __init__(self, parent=None):
