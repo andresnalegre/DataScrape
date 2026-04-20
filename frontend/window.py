@@ -74,10 +74,6 @@ class ToggleButton(QPushButton):
         self.setCursor(Qt.PointingHandCursor)
 
 class PagesSelector(QWidget):
-    """
-    Compact pill-row: [ Pages: [__50__] ] [ Infinite ]
-    Always visible in crawling mode. No stacked widget, no expansion.
-    """
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("pages_selector")
@@ -159,7 +155,7 @@ class MainWindow(QMainWindow):
         from PyQt5.QtWidgets import QDesktopWidget
         screen = QDesktopWidget().screenGeometry()
         self.resize(900, 680)
-        self.move((screen.width() - 900) // 2, (screen.height() - 680) // 2)
+        self.move((screen.width() - 900) // 2, max(40, (screen.height() - 680) // 2 - 40))
 
         root = QWidget()
         root.setStyleSheet("background: #0d0d0f;")
@@ -358,20 +354,87 @@ class MainWindow(QMainWindow):
         self.pages_section.setVisible(is_crawl)
 
     def _init_driver(self):
-        self.log_output.append("Starting up, please wait...")
+        self.log_output.clear()
+        self._boot_steps = [
+            self._check_initializing,
+            self._check_engine,
+            self._check_dependencies,
+            self._check_setup,
+            self._check_almost,
+        ]
+        self._boot_index = 0
+        self._boot_ok = True
+        self._boot_timer = QTimer()
+        self._boot_timer.timeout.connect(self._run_next_boot_step)
+        self._boot_timer.start(900)
+
         self._driver_worker = DriverInitWorker()
         self._driver_worker.success_signal.connect(self._on_driver_ready)
         self._driver_worker.error_signal.connect(self._on_driver_error)
         self._driver_worker.start()
 
+    def _run_next_boot_step(self):
+        if self._boot_index < len(self._boot_steps):
+            self._boot_steps[self._boot_index]()
+            self._boot_index += 1
+        else:
+            self._boot_timer.stop()
+            self._check_if_boot_done()
+
+    def _check_initializing(self):
+        self.log_output.append("Initializing...")
+
+    def _check_engine(self):
+        import shutil
+        if shutil.which("google-chrome") or shutil.which("chromium") or shutil.which("chromium-browser") or shutil.which("chromedriver"):
+            self.log_output.append("Loading engine... OK")
+        else:
+            self.log_output.append("Loading engine... OK (managed driver)")
+
+    def _check_dependencies(self):
+        missing = []
+        for pkg in ["selenium", "bs4", "requests", "webdriver_manager"]:
+            try:
+                __import__(pkg)
+            except ImportError:
+                missing.append(pkg)
+        if missing:
+            self.log_output.append(f"Checking dependencies... Missing: {', '.join(missing)}")
+            self._boot_ok = False
+        else:
+            self.log_output.append("Checking dependencies... OK")
+
+    def _check_setup(self):
+        import tempfile, os
+        try:
+            tmp = tempfile.mktemp()
+            with open(tmp, "w") as f:
+                f.write("test")
+            os.remove(tmp)
+            self.log_output.append("Setting up... OK")
+        except Exception:
+            self.log_output.append("Setting up... Failed (disk write error)")
+            self._boot_ok = False
+
+    def _check_almost(self):
+        self.log_output.append("Almost there...")
+
     def _on_driver_ready(self, driver):
         self.driver = driver
         self.start_button.setEnabled(True)
-        self.log_output.append("Ready! Enter a URL and select a folder to begin.")
+        self._driver_ready_pending = True
+        self._check_if_boot_done()
 
     def _on_driver_error(self, error):
+        self._boot_timer.stop()
         self.driver = None
         self.log_output.append("Could not start. Please check your internet connection and restart the app.")
+
+    def _check_if_boot_done(self):
+        if not self._boot_timer.isActive() and getattr(self, "_driver_ready_pending", False):
+            self._driver_ready_pending = False
+            self.log_output.clear()
+            self.log_output.append("Ready!")
 
     def select_directory(self):
         directory = self.logic.select_directory()
@@ -464,16 +527,17 @@ class MainWindow(QMainWindow):
         WebDriverManager.quit_driver()
         event.accept()
 
+
 class AboutDialog(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent, Qt.Window | Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
         self.setWindowTitle("About")
-        self.setFixedSize(420, 380)
+        self.setFixedSize(420, 400)
         self.setStyleSheet("background-color: #111113;")
 
         from PyQt5.QtWidgets import QDesktopWidget
         screen = QDesktopWidget().screenGeometry()
-        self.move((screen.width() - 420) // 2, (screen.height() - 380) // 2)
+        self.move((screen.width() - 420) // 2, (screen.height() - 400) // 2)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(36, 36, 36, 36)
@@ -486,7 +550,16 @@ class AboutDialog(QWidget):
             "letter-spacing: -0.5px; text-transform: none; padding: 0px;"
         )
         layout.addWidget(name_lbl)
-        layout.addSpacing(12)
+        layout.addSpacing(4)
+
+        version_lbl = QLabel("Version 2.0")
+        version_lbl.setAlignment(Qt.AlignCenter)
+        version_lbl.setStyleSheet(
+            "color: #48484a; font-size: 11px; font-weight: 500; "
+            "text-transform: none; letter-spacing: 0.2px; padding: 0px;"
+        )
+        layout.addWidget(version_lbl)
+        layout.addSpacing(14)
 
         desc_lbl = QLabel(
             "DataScrape is a powerful web scraping tool that\n"
@@ -506,46 +579,43 @@ class AboutDialog(QWidget):
         layout.addWidget(div)
         layout.addSpacing(18)
 
-        badge_row = QHBoxLayout()
-        badge_row.setAlignment(Qt.AlignCenter)
-        badge_row.setSpacing(8)
-
-        badges = [
-            ("Python", "3.12", "#3572A5", "#4584b6"),
-            ("PyQt5", "5.15", "#21522e", "#41cd52"),
-            ("Selenium", "4.0", "#1a3d1a", "#43b02a"),
-        ]
-
-        for name, version, name_bg, ver_bg in badges:
+        def make_badge(name, version, name_bg, ver_bg):
             pill = QWidget()
-            pill.setStyleSheet(
-                "background: transparent;"
-            )
-            pill_layout = QHBoxLayout(pill)
-            pill_layout.setContentsMargins(0, 0, 0, 0)
-            pill_layout.setSpacing(0)
-
-            name_lbl = QLabel(name)
-            name_lbl.setStyleSheet(
+            pill.setStyleSheet("background: transparent;")
+            pl = QHBoxLayout(pill)
+            pl.setContentsMargins(0, 0, 0, 0)
+            pl.setSpacing(0)
+            n = QLabel(name)
+            n.setStyleSheet(
                 f"background-color: {name_bg}; color: #ffffff; font-size: 11px; font-weight: 600; "
                 f"border-top-left-radius: 5px; border-bottom-left-radius: 5px; "
                 f"border-top-right-radius: 0px; border-bottom-right-radius: 0px; "
-                f"padding: 3px 8px; text-transform: none; letter-spacing: 0.1px;"
+                f"padding: 4px 9px; text-transform: none; letter-spacing: 0.1px;"
             )
-            ver_lbl = QLabel(version)
-            ver_lbl.setStyleSheet(
+            v = QLabel(version)
+            v.setStyleSheet(
                 f"background-color: {ver_bg}; color: #ffffff; font-size: 11px; font-weight: 700; "
                 f"border-top-left-radius: 0px; border-bottom-left-radius: 0px; "
                 f"border-top-right-radius: 5px; border-bottom-right-radius: 5px; "
-                f"padding: 3px 8px; text-transform: none; letter-spacing: 0.1px;"
+                f"padding: 4px 9px; text-transform: none; letter-spacing: 0.1px;"
             )
+            pl.addWidget(n)
+            pl.addWidget(v)
+            return pill
 
-            pill_layout.addWidget(name_lbl)
-            pill_layout.addWidget(ver_lbl)
-            badge_row.addWidget(pill)
+        row1 = QHBoxLayout()
+        row1.setAlignment(Qt.AlignCenter)
+        row1.setSpacing(8)
+        row1.addWidget(make_badge("Python", "3.12", "#3572A5", "#4584b6"))
+        row1.addWidget(make_badge("PyQt5",  "5.15", "#21522e", "#41cd52"))
+        layout.addLayout(row1)
+        layout.addSpacing(8)
 
-        layout.addLayout(badge_row)
-        layout.addSpacing(14)
+        row2 = QHBoxLayout()
+        row2.setAlignment(Qt.AlignCenter)
+        row2.addWidget(make_badge("Selenium", "4.0", "#1a3d1a", "#43b02a"))
+        layout.addLayout(row2)
+        layout.addSpacing(18)
 
         author_lbl = QLabel('Developed by <a href="https://andresnicolas.com" style="color:#0a84ff; text-decoration:none;">Andres Nicolas</a>')
         author_lbl.setAlignment(Qt.AlignCenter)
@@ -555,7 +625,6 @@ class AboutDialog(QWidget):
             "text-transform: none; letter-spacing: 0px; padding: 0px;"
         )
         layout.addWidget(author_lbl)
-        layout.addSpacing(20)
 
     def _find_asset(self, filename):
         base = os.path.dirname(__file__)
