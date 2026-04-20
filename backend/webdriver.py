@@ -33,10 +33,28 @@ def get_chrome_driver(headless=True, additional_args=None):
     import os
     try:
         options = ChromeOptions()
+
         if headless:
-            options.add_argument("--headless")
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
+            options.add_argument("--headless=new")
+
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--disable-infobars")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--start-maximized")
+        options.add_argument("--lang=en-US,en;q=0.9")
+        options.add_argument(
+            "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/131.0.0.0 Safari/537.36"
+        )
+
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("useAutomationExtension", False)
+
         if additional_args:
             for arg in additional_args:
                 options.add_argument(arg)
@@ -47,6 +65,16 @@ def get_chrome_driver(headless=True, additional_args=None):
         driver_path = _get_chromedriver_path()
         service = ChromeService(driver_path)
         driver = webdriver.Chrome(service=service, options=options)
+
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": """
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+                Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+                window.chrome = { runtime: {} };
+            """
+        })
+
         driver.implicitly_wait(10)
         driver.set_page_load_timeout(30)
         driver.set_script_timeout(30)

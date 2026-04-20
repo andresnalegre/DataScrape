@@ -1,8 +1,9 @@
 import os
+import re
 import logging
 import requests
 from collections import deque
-from urllib.parse import urlparse, urljoin, urlunparse
+from urllib.parse import urlparse, urljoin, urlunparse, unquote
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from selenium.webdriver.common.by import By
@@ -11,6 +12,13 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
 MAX_RESOURCE_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _sanitize_filename(name):
+    name = unquote(name)
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)
+    name = name.strip('. ')
+    return name[:180] or "unnamed"
 
 
 class Extractor:
@@ -51,10 +59,10 @@ class Extractor:
             if depth > self.max_depth:
                 continue
             if pages_done >= self.max_pages:
-                self._emit(f"Reached page limit ({self.max_pages}). Stopping.")
+                self._emit(f"Reached page limit. Stopping.")
                 break
 
-            self._emit(f"[{pages_done + 1}/{self.max_pages}] Scraping: {url}")
+            self._emit(f"[{pages_done + 1}] Scraping: {url}")
             result = self._fetch_page(url)
 
             if result is None:
@@ -78,6 +86,17 @@ class Extractor:
         self._emit(f"Crawling complete. {pages_done} page(s) collected.")
         return pages_done
 
+    def _page_save_dir(self, url):
+        parsed = urlparse(url)
+        path = parsed.path.strip('/')
+        if path:
+            folder = _sanitize_filename(path.replace('/', '_'))
+        else:
+            folder = "index"
+        page_dir = os.path.join(self.save_dir, folder)
+        os.makedirs(page_dir, exist_ok=True)
+        return page_dir
+
     def _fetch_page(self, url):
         try:
             self.driver.get(url)
@@ -92,13 +111,14 @@ class Extractor:
 
             soup = BeautifulSoup(html_content, 'html.parser')
             links = self._collect_links(soup, url)
-            self._process_resources(soup, url, self.save_dir)
+
+            page_dir = self._page_save_dir(url)
+            self._process_resources(soup, url, page_dir)
 
             if self.stop_flag and self.stop_flag():
                 return None
 
-            filename = self._create_filename(url)
-            self._save_html(str(soup), self.save_dir, filename)
+            self._save_html(str(soup), page_dir, "index.html")
 
             return {"html": str(soup), "links": links}
 
@@ -121,12 +141,6 @@ class Extractor:
             if parsed.netloc == self.base_domain:
                 links.append(full_url)
         return links
-
-    def _create_filename(self, url):
-        parsed = urlparse(url)
-        path = parsed.path.strip('/')
-        name = f"{parsed.netloc}_{path.replace('/', '_')}.html" if path else "index.html"
-        return name[:200]
 
     def _save_html(self, html_content, save_dir, filename):
         try:
@@ -176,9 +190,10 @@ class Extractor:
                 if resource_url.startswith(('data:', '#', 'javascript:')):
                     continue
                 full_url = urljoin(base_url, resource_url)
-                filename = os.path.basename(urlparse(full_url).path)
-                if not filename:
+                raw_name = os.path.basename(urlparse(full_url).path)
+                if not raw_name:
                     continue
+                filename = _sanitize_filename(raw_name)
                 save_path = os.path.join(save_dir, filename)
                 tasks.append((element, attr, full_url, save_path))
 
