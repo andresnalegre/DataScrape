@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.png" alt="DataScrape" width="120" />
+  <img src="assets/git.png" alt="DataScrape" width="120" />
 
   # DataScrape
 
