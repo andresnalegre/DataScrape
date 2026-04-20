@@ -11,7 +11,26 @@ from webdriver_manager.firefox import GeckoDriverManager
 from contextlib import contextmanager
 
 
+MACOS_CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+
+def _get_chromedriver_path():
+    import os, sys, glob
+    bundled = os.path.join(getattr(sys, "_MEIPASS", ""), "chromedriver")
+    if os.path.isfile(bundled):
+        logging.info(f"Using bundled ChromeDriver: {bundled}")
+        return bundled
+    pattern = os.path.expanduser("~/.wdm/drivers/chromedriver/mac64/*/chromedriver-mac-arm64/chromedriver")
+    matches = sorted(glob.glob(pattern), reverse=True)
+    if matches:
+        logging.info(f"Using cached ChromeDriver: {matches[0]}")
+        return matches[0]
+    logging.info("Using ChromeDriverManager to fetch driver.")
+    return ChromeDriverManager().install()
+
+
 def get_chrome_driver(headless=True, additional_args=None):
+    import os
     try:
         options = ChromeOptions()
         if headless:
@@ -22,7 +41,11 @@ def get_chrome_driver(headless=True, additional_args=None):
             for arg in additional_args:
                 options.add_argument(arg)
 
-        service = ChromeService(ChromeDriverManager().install())
+        if os.path.exists(MACOS_CHROME_PATH):
+            options.binary_location = MACOS_CHROME_PATH
+
+        driver_path = _get_chromedriver_path()
+        service = ChromeService(driver_path)
         driver = webdriver.Chrome(service=service, options=options)
         driver.implicitly_wait(10)
         driver.set_page_load_timeout(30)

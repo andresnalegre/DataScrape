@@ -428,7 +428,7 @@ class MainWindow(QMainWindow):
     def _on_driver_error(self, error):
         self._boot_timer.stop()
         self.driver = None
-        self.log_output.append("Could not start. Please check your internet connection and restart the app.")
+        self.log_output.append(f"Error: {error}")
 
     def _check_if_boot_done(self):
         if not self._boot_timer.isActive() and getattr(self, "_driver_ready_pending", False):
