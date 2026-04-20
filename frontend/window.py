@@ -99,7 +99,7 @@ class PagesSelector(QWidget):
 
         self.pages_input = QLineEdit()
         self.pages_input.setObjectName("pages_pill_input")
-        self.pages_input.setText("50")
+        self.pages_input.setText("500")
         self.pages_input.setAlignment(Qt.AlignCenter)
         self.pages_input.setFixedWidth(60)
         self.pages_input.setFixedHeight(30)
