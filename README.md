@@ -31,25 +31,6 @@
 
 ---
 
-## Installation (macOS)
-
-### 1. Download
-Download `DataScrape.dmg` from the [Releases](https://github.com/andresnalegre/DataScrape/releases) page.
-
-### 2. Install
-Open the DMG and drag DataScrape.app to your Applications folder.
-
-### 3. First Launch
-macOS will block the app on first launch because it's not signed. Run this once in Terminal:
-
-```bash
-xattr -cr /Applications/DataScrape.app
-```
-
-Then open DataScrape from Applications or Launchpad normally.
-
----
-
 > **Note:** Chrome must be installed on your machine for the scraper to work.
 
 ---
